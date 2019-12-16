@@ -1,6 +1,6 @@
 dependencies:
 - name: gitpod
   repository: https://charts.gitpod.io/
-  version: 0.1.0
-digest: sha256:d00dbf085652014a03a86b56613b179b0523c0deb7ce4991048a3851e23a8ae8
-generated: "2019-12-16T14:00:19.60147881Z"
+  version: 0.3.0
+digest: sha256:fed48d0ab99ac71e841e2a224beced9d70e2dd6d2bb0e9cef078ca72d8c8afd3
+generated: "2019-12-16T16:23:28.023886579Z"
