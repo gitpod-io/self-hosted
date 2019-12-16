@@ -1,0 +1,8 @@
+gitpod:
+  certificatesSecret:
+    secretName: proxy-config-certificates
+    path: secrets/https-certificates/*
+
+gitpod_selfhosted:
+  variants:
+    customCerts: true

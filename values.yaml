@@ -1,0 +1,15 @@
+gitpod:
+  # This field must be set to your domain name. Leaving it set to its default value will result in
+  # a non-functional installation.
+  hostname: your-domain.com
+
+  # If you have a static IP that your domain resolves to, add set it here.
+  # Leaving this field set to its default value is fine. Kubernetes will assign you an IP address
+  # during deployment.
+  components:
+    proxy:
+      loadBalancerIP: null
+
+  # RBAC is enabled by default. If your cluster does not use RBAC, set this flag to false so that
+  # we do not attempt to install PodSecurityPolicies and the likes.
+  installPodSecurityPolicies: true

@@ -1,0 +1,4 @@
+dependencies:
+- name: gitpod
+  version: 0.1.0
+  repository: https://charts.gitpod.io/
