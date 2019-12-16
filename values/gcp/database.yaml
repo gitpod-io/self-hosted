@@ -1,0 +1,13 @@
+gitpod:
+  db:
+    # 
+    password: YourPasswordGoesHere
+
+  components:
+    db:
+      disabled: false
+      mode: proxy
+      gcloudSqlProxy:
+        # Set it to the name of your CloudSQL instance.
+        instance: practiv-internal-gitpod:us-west1:gitpod-db
+        credentials: secrets/gitpod-cloudsql-client-key.json

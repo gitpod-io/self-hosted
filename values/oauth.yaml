@@ -1,0 +1,11 @@
+gitpod:
+  authProviders:
+  - id: "Git-Hosting"
+    host: "github.com"
+    protocol: "https"
+    type: "GitHub" # alt. "GitLab"
+    oauth:
+      clientId: "your-client-ID-here"
+      clientSecret: "your-client-secret-here"
+      callBackUrl: "https://your-domain.com/auth/github/callback"
+      settingsUrl: "https://github.com/settings/connections/applications/your-client-ID-here"
