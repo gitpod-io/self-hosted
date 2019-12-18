@@ -48,9 +48,6 @@ func main() {
 	printStep("check environment")
 	failOnError(checkEnvironment())
 
-	printStep("create static IP address")
-	failOnError(createIPAddress())
-
 	printStep("create VPC network")
 	failOnError(createVPCNetwork())
 
@@ -74,6 +71,9 @@ func main() {
 
 	printStep("setup helm")
 	failOnError(setupHelm())
+
+	printStep("create static IP address")
+	failOnError(createIPAddress())
 
 	printNextSteps()
 }
@@ -101,25 +101,61 @@ func checkEnvironment() error {
 	failOnError(runLoud("gcloud", "components", "install", "beta"))
 
 	// ensure gcloud is configured properly and extract that config
-	configSettings := map[string]*string{
-		"core/project":   &projectID,
-		"compute/region": &region,
-		"compute/zone":   &zone,
+	configSettings := []struct {
+		V       *string
+		GCPName string
+		Name    string
+		Link    string
+	}{
+		{&projectID, "core/project", "project", ""},
+		{&region, "compute/region", "compute region", "https://cloud.google.com/compute/docs/regions-zones/"},
+		{&zone, "compute/zone", "compute zone", "https://cloud.google.com/compute/docs/regions-zones/"},
 	}
-	for k, v := range configSettings {
-		out, err := run("gcloud", "config", "get-value", k)
+	for _, v := range configSettings {
+		out, err := run("gcloud", "config", "get-value", v.GCPName)
 		if err != nil {
 			return fmt.Errorf(errPrjNotConfigured)
 		}
-		*v = strings.TrimSpace(string(out))
-		fmt.Printf("  %s: %s\n", k, *v)
+
+		val := strings.TrimSpace(string(out))
+		if strings.Contains(val, "(unset)") {
+			var desc string
+			if v.Link != "" {
+				desc = " (see " + v.Link + ")"
+			}
+			fmt.Printf("\n  \033[36mNo %s configured. \033[mPlease enter the %s%s:\n  > ", v.GCPName, v.Name, desc)
+			fmt.Scanln(&val)
+
+			val = strings.TrimSpace(val)
+			if val == "" {
+				return fmt.Errorf(errPrjNotConfigured)
+			}
+
+			out, err := run("gcloud", "config", "set", v.GCPName, val)
+			if err != nil {
+				return fmt.Errorf(out)
+			}
+		}
+
+		*v.V = val
+		fmt.Printf("  %s: %s\n", v.GCPName, val)
 	}
 
 	var choice string
-	fmt.Println("\033[32mBeware: \033[mthis script is about to create resources in your GCP project that will cost you money.\nDo you want to continue? [Y/n]")
+	fmt.Print("\n\033[32mBeware: \033[mthis script is about to create resources in your GCP project that will cost you money.\nDo you want to continue? [Y/n] ")
 	fmt.Scanln(&choice)
 	if !(choice == "" || choice == "y" || choice == "Y") {
 		return fmt.Errorf("aborting")
+	}
+
+	out, err := run("gcloud", "projects", "describe", projectID)
+	if err != nil {
+		fmt.Print("\n\033[33mProject could not be accessed. \033[mCould not access project. It may not exist (or you do not have the permissions). Do you want to try to create the project? [Y/n] ")
+		fmt.Scanln(&choice)
+		if !(choice == "" || choice == "y" || choice == "Y") {
+			return fmt.Errorf(string(out))
+		}
+		failOnError(runLoud("gcloud", "projects", "create", projectID))
 	}
 
 	requiredServices := []string{
@@ -182,7 +218,7 @@ func createIPAddress() error {
 		}
 		if strings.Contains(l, "loadBalancerIP:") {
 			segs := strings.Split(l, ":")
-			lines[i] = segs[0] + ": " + ipAddress + "\n"
+			lines[i] = segs[0] + ": " + ipAddress
 		}
 	}
 	err = ioutil.WriteFile(filepath.Join(cwd, "values.yaml"), []byte(strings.Join(lines, "\n")), 0644)
@@ -404,13 +440,7 @@ gitpod_selfhosted:
 func createDatabase() error {
 	dbName = "gitpod-db"
 
-	// generate random database password
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 12; i++ {
-		p := rand.Intn('~'-'!') + '!'
-		dbRootPassword += string(p)
-	}
-	dbRootPassword = strings.ReplaceAll(dbRootPassword, "\"", "#")
+	dbRootPassword = generateRandomPassword()
 	fmt.Printf("  root database user password: %s\n", dbRootPassword)
 
 	args := map[string]string{
@@ -433,8 +463,9 @@ func createDatabase() error {
 	for i := 0; i < 5; i++ {
 		out, err := run("gcloud", "sql", "users", "set-password", "root", "--host", "%", "--instance", dbName, "--password", dbRootPassword)
 		if err != nil && strings.Contains(string(out), "HTTPError 409") {
-			time.Sleep(10 * time.Second)
-			fmt.Printf("  unable to set password - retrying\n  \033[2m%s\033[m\n", string(out))
+			var waittime = (i + 1) * 15
+			fmt.Printf("  unable to set password - retrying in %d seconds\n  \033[2m%s\033[m\n", waittime, string(out))
+			time.Sleep(time.Duration(waittime) * time.Second)
 			continue
 		}
 		if err != nil {
@@ -472,13 +503,7 @@ func initializeDatabase() error {
 		failOnError(runLoud("chmod", "+x", cloudSQLProxy))
 	}
 
-	// generate random database password
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 12; i++ {
-		p := rand.Intn('~'-'!') + '!'
-		dbGitpodPassword += string(p)
-	}
-	dbGitpodPassword = strings.ReplaceAll(dbGitpodPassword, "\"", "#")
+	dbGitpodPassword = generateRandomPassword()
 	fmt.Printf("  gitpod database user password: %s\n", dbGitpodPassword)
 
 	// create DB init script
@@ -496,11 +521,16 @@ FLUSH PRIVILEGES;
 	// start cloudSqlProxy
 	cloudSQLProxyCmd := runC(cloudSQLProxy, "-instances="+projectID+":"+region+":"+dbName+"=tcp:0.0.0.0:3306", "-credential_file=secrets/gitpod-cloudsql-client-key.json")
 	cloudSQLProxyCmd.Stderr = os.Stderr
+	var sqlProxyMayFail bool
 	go func() {
-		err := cloudSQLProxyCmd.Run()
+		err := cloudSQLProxyCmd.Start()
+		if sqlProxyMayFail {
+			return
+		}
 		failOnError(err)
 	}()
 	defer func() {
+		sqlProxyMayFail = true
 		cloudSQLProxyCmd.Process.Kill()
 	}()
 
@@ -542,6 +572,7 @@ gitpod:
 
 func setupHelm() error {
 	valueFiles := []string{
+		"values.yaml",
 		"values/gcp/database.yaml",
 		"values/gcp/buckets.yaml",
 		"values/registry.yaml",
@@ -549,7 +580,7 @@ func setupHelm() error {
 		"values/node-layout.yaml",
 		"values/workspace-sizing.yaml",
 	}
-	err := ioutil.WriteFile(filepath.Join(cwd, "configuration.txt"), []byte(strings.Join(valueFiles, "\n")), 0644)
+	err := ioutil.WriteFile(filepath.Join(cwd, "configuration.txt"), []byte(strings.Join(valueFiles, "\n")+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -577,8 +608,8 @@ func printNextSteps() {
 
 Your GCP project and this Helm chart are (almost) ready for installation.
 The steps left to do are:
-- [optional] set up HTTPs certificates (see README.md for details)
-- [required] set up OAuth (see docs/30_how_to_oauth.md)
+- [optional] set up HTTPs certificates (see https://gitpod.io/docs/self-hosted/latest/install/34_https_certs/)
+- [required] set up OAuth (see https://gitpod.io/docs/self-hosted/latest/install/30_oauth/)
 - use helm to install Gitpod:
 
     export PATH=` + filepath.Join(cwd, "utils") + `:$PATH
@@ -661,4 +692,17 @@ func buildArgs(prefix []string, argm map[string]string) []string {
 		args = append(args, fmt.Sprintf("--%s=%s", k, v))
 	}
 	return args
+}
+
+func generateRandomPassword() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var password string
+
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 40; i++ {
+		p := charset[rand.Intn(len(charset))]
+		password += string(p)
+	}
+	return password
 }
