@@ -2,7 +2,7 @@
 
 [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/gitpod-io/self-hosted)
 
-This repository contains the configuration template and installation scripts to deploy Gitpod on your own infrastructure. Lean more about [Gitpod Self-Hosted](https://www.gitpod.io/docs/self-hosted/latest/self-hosted/).
+This repository contains the configuration templates and installation scripts to deploy Gitpod on your own infrastructure. Learn more about [Gitpod Self-Hosted](https://www.gitpod.io/docs/self-hosted/latest/self-hosted/).
 
 ## Install on GCP
 
