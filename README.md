@@ -6,7 +6,7 @@ This repository contains the configuration template and installation scripts to 
 
 ## Install on GCP
 
-If you want to use Google Cloud Platform, you can start the Gitpod Self-Hosted installation process in one click:
+If you want to deploy Gitpod Self-Hosted on Google Cloud Platform, you can start the installation process in one click:
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/gitpod-io/self-hosted)
 
