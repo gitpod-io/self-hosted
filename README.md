@@ -11,9 +11,9 @@ If you want to deploy Gitpod Self-Hosted on Google Cloud Platform, you can start
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/gitpod-io/self-hosted)
 
 Alternatively, you can run this process locally like so:
-1. Fork & clone this repository
-2. Install [Google Cloud SDK](https://cloud.google.com/sdk/install)
-3. Install [Go](https://golang.org/doc/install)
+1. Install [Google Cloud SDK](https://cloud.google.com/sdk/install)
+2. Install [Go](https://golang.org/doc/install)
+3. Fork & clone this repository
 4. Run `./utils/create-gcp-resources.go`
 
 ## Install on AWS
