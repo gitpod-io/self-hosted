@@ -28,6 +28,6 @@ Coming soon.
 
 Coming soon.
 
-## Install on any Kubernetes cluster
+## Install on any Kubernetes system
 
 Please see the [installation instructions for vanilla Kubernetes](https://www.gitpod.io/docs/self-hosted/latest/install/install-on-kubernetes/).
