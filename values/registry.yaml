@@ -8,12 +8,16 @@ gitpod:
         secretName: image-builder-registry-secret
         path: secrets/registry-auth.json
 
+    # server:
+    #   defaultBaseImageRegistryWhitelist:
+    #   - some.registry.domain.com
+
     workspace:
       pullSecret:
         secretName: image-builder-registry-secret
 
-docker-registry:
-  enabled: false
+  docker-registry:
+    enabled: false
 
 gitpod_selfhosted:
   variants:

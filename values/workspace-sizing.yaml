@@ -2,11 +2,10 @@ gitpod:
   # workspaceSizing configures the resources available to each workspace. These settings directly impact how
   # desenly we pack workspaces on nodes where workspacesPerNode = memoryAvailable(node) / memoryRequest.
   #
-  # Beware: if a workspace exceeds its memoryLimit it is terminated which results in a broken user experience.
+  # Beware: if a workspace exceeds its memoryLimit, some of its processes may be terminated (OOM-kill) which
+  # results in a broken user experience.
   workspaceSizing:
     # in MiB
     memoryRequest: 2150
     # in MiB
-    memoryLimit: 8499
-    # number of workspaces a user can have running in parallel
-    maxRunningWorkspaces: 10
+    memoryLimit: 11444

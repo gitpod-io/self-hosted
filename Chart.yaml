@@ -2,4 +2,4 @@ apiVersion: v1
 appVersion: 0.1.5
 description: The configuration chart for your Gitpod installation
 name: gitpod-selfhosted
-version: 0.3.0
+version: 0.4.0
