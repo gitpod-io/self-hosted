@@ -23,6 +23,8 @@ gitpod:
           # You need to set your GCP project ID here.
           # Beware: the name of your project is not the same as its ID. You can find the project ID under the "Home" page of your GCP project.
           projectId: some-gcp-project-id
+          # The GCP region you want the workspace content to be stored in. This should ideally be in the same region as your cluster.
+          region: some-gcp-region
           # You shouldn't have to change the values below if you're using the templates that ship with this chart.
           credentialsFile: /credentials/gitpod-workspace-syncer-key.json
           tmpdir: /mnt/sync-tmp
@@ -32,5 +34,5 @@ gitpod:
         secretName: gcp-server-storage-key
         keyFilePath: secrets/gitpod-workspace-syncer-key.json
 
-minio:
-  enabled: false
+  minio:
+    enabled: false
