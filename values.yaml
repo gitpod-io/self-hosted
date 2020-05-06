@@ -29,7 +29,7 @@ gitpod:
     oauth:
       clientId: "your-application-ID-here"
       clientSecret: "your-secret-here"
-      callBackUrl: "https://your-domain.com/auth/github/callback"
+      callBackUrl: "https://your-domain.com/auth/gitlab/callback"
       settingsUrl: "gitlab.com/profile/applications"
 
   # RBAC is enabled by default. If your cluster does not use RBAC, set this flag to false so that

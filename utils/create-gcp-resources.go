@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -285,11 +286,48 @@ func createServiceAccounts() error {
 	return nil
 }
 
+func findAvailableGKEVersion() (version string, err error) {
+	out, err := run("gcloud", "container", "get-server-config", "--zone="+zone, "--format=json")
+	if err != nil {
+		return
+	}
+	// trim first line which reads something like "Fetching server config for ...", hence is not valid JSON
+	out = strings.Join(strings.Split(out, "\n")[1:], "\n")
+
+	var info struct {
+		DefaultClusterVersion string   `json:"defaultClusterVersion"`
+		ValidImageTypes       []string `json:"validImageTypes"`
+	}
+	err = json.Unmarshal([]byte(out), &info)
+	if err != nil {
+		return
+	}
+
+	// while we're at it we'll make sure we have cos_containerd available
+	var found bool
+	for _, tpe := range info.ValidImageTypes {
+		if tpe == "COS_CONTAINERD" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("zone does not support cos_containerd GKE nodes: please use a different zone")
+	}
+
+	return info.DefaultClusterVersion, nil
+}
+
 func createCluster() error {
+	version, err := findAvailableGKEVersion()
+	if err != nil {
+		return err
+	}
+
 	metapoolArgs := map[string]string{
 		"region":                      region,
 		"node-locations":              zone,
-		"cluster-version":             "1.14.7-gke.23",
+		"cluster-version":             version,
 		"addons=NetworkPolicy":        "",
 		"no-enable-basic-auth":        "",
 		"no-issue-client-certificate": "",
@@ -313,28 +351,30 @@ func createCluster() error {
 		"enable-autorepair":           "",
 		"local-ssd-count":             "0",
 		"workload-metadata-from-node": "SECURE",
+		"no-enable-autoupgrade":       "",
 	}
-	_, err := run("gcloud", buildArgs([]string{"beta", "container", "clusters", "create", "gitpod-cluster"}, metapoolArgs)...)
+	_, err = run("gcloud", buildArgs([]string{"beta", "container", "clusters", "create", "gitpod-cluster"}, metapoolArgs)...)
 	if err != nil && !isAlreadyExistsErr(err) {
 		return err
 	}
 
 	wspoolArgs := map[string]string{
-		"region":             region,
-		"cluster":            "gitpod-cluster",
-		"metadata":           "disable-legacy-endpoints=true",
-		"num-nodes":          "0",
-		"enable-autoscaling": "",
-		"min-nodes":          "0",
-		"max-nodes":          "10",
-		"service-account":    "gitpod-nodes-workspace@" + projectID + ".iam.gserviceaccount.com",
-		"node-labels":        "gitpod.io/workload_workspace=true",
-		"machine-type":       "n1-standard-16",
-		"image-type":         "cos_containerd",
-		"disk-size":          "200",
-		"disk-type":          "pd-ssd",
-		"enable-autorepair":  "",
-		"local-ssd-count":    "1",
+		"region":                region,
+		"cluster":               "gitpod-cluster",
+		"metadata":              "disable-legacy-endpoints=true",
+		"num-nodes":             "0",
+		"enable-autoscaling":    "",
+		"min-nodes":             "0",
+		"max-nodes":             "10",
+		"service-account":       "gitpod-nodes-workspace@" + projectID + ".iam.gserviceaccount.com",
+		"node-labels":           "gitpod.io/workload_workspace=true",
+		"machine-type":          "n1-standard-16",
+		"image-type":            "cos_containerd",
+		"disk-size":             "200",
+		"disk-type":             "pd-ssd",
+		"enable-autorepair":     "",
+		"local-ssd-count":       "1",
+		"no-enable-autoupgrade": "",
 	}
 	_, err = run("gcloud", buildArgs([]string{"beta", "container", "node-pools", "create", "workspace-pool-1"}, wspoolArgs)...)
 	if err != nil && !isAlreadyExistsErr(err) {
@@ -357,6 +397,10 @@ func setupBucketStorage() error {
 	if err != nil {
 		return err
 	}
+	_, err = run("gcloud", "projects", "add-iam-policy-binding", projectID, "--member=serviceAccount:gitpod-workspace-syncer@"+projectID+".iam.gserviceaccount.com", "--role=roles/storage.objectViewer")
+	if err != nil {
+		return err
+	}
 	_, err = run("gcloud", "iam", "service-accounts", "keys", "create", "secrets/gitpod-workspace-syncer-key.json", "--iam-account=gitpod-workspace-syncer@"+projectID+".iam.gserviceaccount.com")
 	if err != nil {
 		return err
@@ -369,6 +413,7 @@ func setupBucketStorage() error {
 		return err
 	}
 	fc = bytes.ReplaceAll(fc, []byte("some-gcp-project-id"), []byte(projectID))
+	fc = bytes.ReplaceAll(fc, []byte("some-gcp-region"), []byte(region))
 	err = ioutil.WriteFile(bucketsYamlFN, fc, 0644)
 	if err != nil {
 		return err
@@ -423,8 +468,8 @@ gitpod:
       pullSecret:
         secretName: image-builder-registry-secret
 
-docker-registry:
-  enabled: false
+  docker-registry:
+    enabled: false
 
 gitpod_selfhosted:
   variants:
@@ -557,11 +602,13 @@ gitpod:
 
   components:
     db:
-      disabled: false
-      mode: proxy
       gcloudSqlProxy:
+        enabled: true
         instance: `+projectID+":"+region+":"+dbName+`
         credentials: secrets/gitpod-cloudsql-client-key.json
+  
+  mysql:
+    enabled: false
 `), 0644)
 	if err != nil {
 		return err
@@ -608,8 +655,9 @@ func printNextSteps() {
 
 Your GCP project and this Helm chart are (almost) ready for installation.
 The steps left to do are:
-- [optional] set up HTTPs certificates (see https://gitpod.io/docs/self-hosted/latest/install/34_https_certs/)
-- [required] set up OAuth (see https://gitpod.io/docs/self-hosted/latest/install/30_oauth/)
+- [optional] set up HTTPs certificates (see https://www.gitpod.io/docs/self-hosted/latest/install/https-certs/)
+- [required] set your domain (see values.yaml)
+- [required] set up OAuth (see https://www.gitpod.io/docs/self-hosted/latest/install/oauth/) (see values.yaml)
 - use helm to install Gitpod:
 
     export PATH=` + filepath.Join(cwd, "utils") + `:$PATH

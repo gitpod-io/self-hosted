@@ -8,5 +8,5 @@ gitpod:
         secretKey: Someone.Should/ReallyChangeThisKey!!
         tmpdir: /tmp
 
-minio:
-  enabled: false
+  minio:
+    enabled: false

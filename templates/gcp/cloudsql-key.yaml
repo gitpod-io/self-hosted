@@ -1,5 +1,5 @@
 {{- $comp := .Values.gitpod.components.db -}}
-{{- if and (not $comp.disabled) (eq $comp.mode "proxy") }}
+{{- if $comp.gcloudSqlProxy.enabled }}
 kind: Secret
 apiVersion: v1
 metadata:
