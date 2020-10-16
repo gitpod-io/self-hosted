@@ -1,5 +1,7 @@
 # Gitpod Self-Hosted
 
+**DEPRECATED since Gitpod 0.5.0; use https://github.com/gitpod-io/gitpod/tree/master/chart and https://github.com/gitpod-io/gitpod/tree/master/install/helm**
+
 [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/gitpod-io/self-hosted)
 
 This repository contains the configuration templates and installation scripts to deploy Gitpod on your own infrastructure. Learn more about [Gitpod Self-Hosted](https://www.gitpod.io/docs/self-hosted/latest/self-hosted/).
